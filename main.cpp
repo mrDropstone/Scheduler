@@ -139,7 +139,7 @@ struct Schedule {
                 auto& day = school_class.schedule.at(i);
                 // Calculate appropriate amount of subjects per day inaccuracy
                 if (day.lessons.size() > max_subjects_per_day) {
-                    inaccuracy += std::pow(day.lessons.size() - max_subjects_per_day, 1) * 3;
+                    inaccuracy += std::pow(day.lessons.size() - max_subjects_per_day, 1.5);
                 }
                 // Calculate maximum daily load inaccuracy
                 // 1. count all subjects
@@ -167,7 +167,7 @@ struct Schedule {
                 for (auto& subject : requirements.classes.at(school_class.name).max_daily_load) {
                     if (subjects.contains(subject.first)) {
                         if (subjects.at(subject.first) > subject.second) {
-                            inaccuracy += std::pow(subjects.at(subject.first) - subject.second, 1) * 2;
+                            inaccuracy += std::pow(subjects.at(subject.first) - subject.second, 1.5);
                         }
                     }
                 }
@@ -179,7 +179,7 @@ struct Schedule {
             for (auto& day : teacher.second.days) {
                 for (auto& lesson : day.lessons) {
                     if (lesson > 1) {
-                        inaccuracy += std::pow(lesson, 1) * 5;
+                        inaccuracy += std::pow(lesson, 2) ;
                     }
                 }
             }
@@ -312,36 +312,6 @@ int main() {
         std::make_shared<Teacher>("Benjure", std::vector<Subject>()),
         std::make_shared<Teacher>("Guobian", std::vector<Subject>()),
         std::make_shared<Teacher>("Teleportan", std::vector<Subject>()),
-std::make_shared<Teacher>("Elena Rostova", std::vector<Subject>()),
-std::make_shared<Teacher>("Marcus Vance", std::vector<Subject>()),
-std::make_shared<Teacher>("Amina Diop", std::vector<Subject>()),
-std::make_shared<Teacher>("Silas Thorne", std::vector<Subject>()),
-std::make_shared<Teacher>("Lin Wei", std::vector<Subject>()),
-std::make_shared<Teacher>("Arthur Pendelton", std::vector<Subject>()),
-std::make_shared<Teacher>("Clara Oswald", std::vector<Subject>()),
-std::make_shared<Teacher>("Devon Lane", std::vector<Subject>()),
-std::make_shared<Teacher>("Fiona Gallagher", std::vector<Subject>()),
-std::make_shared<Teacher>("George Brooks", std::vector<Subject>()),
-std::make_shared<Teacher>("Harriet Beecher", std::vector<Subject>()),
-std::make_shared<Teacher>("Isaac Newton", std::vector<Subject>()),
-std::make_shared<Teacher>("Julia Roberts", std::vector<Subject>()),
-std::make_shared<Teacher>("Kevin Bacon", std::vector<Subject>()),
-std::make_shared<Teacher>("Laura Palmer", std::vector<Subject>()),
-
-// Anagrams & Fantasy-Style Names
-std::make_shared<Teacher>("Kaelen Vex", std::vector<Subject>()),
-std::make_shared<Teacher>("Tamsin Loré", std::vector<Subject>()),
-std::make_shared<Teacher>("Zephyr Blume", std::vector<Subject>()),
-std::make_shared<Teacher>("Oren Thal", std::vector<Subject>()),
-std::make_shared<Teacher>("Lyra Solis", std::vector<Subject>()),
-std::make_shared<Teacher>("Xavier Drake", std::vector<Subject>()),
-std::make_shared<Teacher>("Thorne Valerius", std::vector<Subject>()),
-std::make_shared<Teacher>("Sariel Dawn", std::vector<Subject>()),
-std::make_shared<Teacher>("Quillan Frost", std::vector<Subject>()),
-std::make_shared<Teacher>("Phoenix Ash", std::vector<Subject>()),
-std::make_shared<Teacher>("Nova Stargaze", std::vector<Subject>()),
-std::make_shared<Teacher>("Mireya Moon", std::vector<Subject>()),
-std::make_shared<Teacher>("Lucius Bane", std::vector<Subject>()),
 std::make_shared<Teacher>("Kira Shadow", std::vector<Subject>()),
 
 // Mononyms / Last Names Only
@@ -379,13 +349,22 @@ std::make_shared<Teacher>("Nathan Drake", std::vector<Subject>()),
 std::make_shared<Teacher>("Ophelia Crane", std::vector<Subject>())
     };
     Requirements requirements;
-    for (int i = 0; i < 20; i++) {
+    requirements.teachers = std::move(teachers);
+    for (int i = 0; i < 50; i++) {
         requirements.classes.emplace(std::string(std::to_string(i) + "B"),
             Requirements::SchoolClass({std::map<std::shared_ptr<Subject>, int>({
-                {subjects.at(0), 10}
+                {subjects.at(0), 2},
+                {subjects.at(1), 2},
+                {subjects.at(2), 2},
+                {subjects.at(3), 2},
+                {subjects.at(4), 3},
                 }),
             std::map<std::shared_ptr<Subject>, int>({
-                {subjects.at(0), 50}
+                {subjects.at(0), 10},
+                {subjects.at(1), 6},
+                {subjects.at(2), 7},
+                {subjects.at(3), 5},
+                {subjects.at(4), 10},
                 })})
         );
     }
