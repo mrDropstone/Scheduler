@@ -174,7 +174,7 @@ struct Schedule {
                         lessons++;
                     }
                 }
-                rating += std::pow(day.size() - lessons, 1) * 10000;
+                rating += 10000;
                 rating += std::pow(abs(lessons - 9), 3) * 10;
             }
         }
@@ -256,7 +256,7 @@ struct ConstructedSchedule {
 
 Schedule create_schedule(const Requirements& requirements) {
     Schedule schedule(requirements);
-    int population = 50;
+    int population = 100;
     int survivors = 5;
     std::vector<Schedule> models;
     for (int i = 0; i < population; i++) {
@@ -264,8 +264,9 @@ Schedule create_schedule(const Requirements& requirements) {
         models.back().mutate(requirements);
     }
 
-    for (int i = 0; i < 5000; i++) {
+    for (int i = 0; i < 50000; i++) {
         std::vector<std::pair<float, Schedule>> analysis;
+        analysis.reserve(population);
         for (auto& model : models) {
             int analysis_result = model.analyze(requirements);
             if (analysis_result == 0) {
@@ -276,14 +277,27 @@ Schedule create_schedule(const Requirements& requirements) {
         std::sort(analysis.begin(), analysis.end(), [](const std::pair<float, Schedule>& a, const std::pair<float, Schedule>& b){
             return a.first < b.first;
         });
+        int best = analysis.front().first;
         std::cout << "best = " << analysis.front().first << std::endl;
         models.clear();
         for (int i = 0; i < survivors; i++) {
             models.emplace_back(std::move(analysis.at(i).second));
         }
+        int trademen = 0;
+        for (int j = survivors; trademen != 0 && j < analysis.size(); j++) {
+            auto& model = analysis.at(j);
+            if (model.first - analysis.at(0).first >= 15000) {
+                models.emplace_back(std::move(model.second));
+                trademen--;
+            }
+        }
         assert(models.size() != 0);
         for (int k = 0; k < population; k++) {
-            models.emplace_back(models.at(k % survivors));
+            if (best > 30000000) {
+                models.emplace_back(models.at(k));
+            } else {
+                models.emplace_back(models.at(k % (survivors + trademen)));
+            }
             models.back().mutate(requirements);
         }
     }
@@ -305,18 +319,18 @@ int main() {
 };
 
 std::vector<std::shared_ptr<Teacher>> teachers;
-for (int i = 0; i < 90; ++i) {
+for (int i = 0; i < 290; ++i) {
     teachers.push_back(std::make_shared<Teacher>("T" + std::to_string(i + 1), std::vector<Subject>()));
 }
 
 std::vector<std::shared_ptr<Class>> classes;
-for (int i = 0; i < 50; ++i) {
+for (int i = 0; i < 250; ++i) {
     std::string name = "C" + (i < 9 ? std::string("0") : std::string("")) + std::to_string(i + 1);
     classes.push_back(std::make_shared<Class>(name));
 }
 
 Requirements requirements;
-for (int i = 0; i < 20; ++i) {
+for (int i = 0; i < 50; ++i) {
     int group = i / 5; // 0..9, ten groups of five classes
     std::map<std::shared_ptr<Subject>, Requirements::SubjectRequirements> reqs;
 
