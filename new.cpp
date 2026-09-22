@@ -156,12 +156,12 @@ struct Prototype {
         school_class.at(new_day_index).at(new_lesson_index)++;
         teacher.at(new_day_index).at(new_lesson_index)++;
 
-        int gaps_after_update;// = calculate_gaps(school_class, genome.day) + calculate_gaps(school_class, new_day_index);
+        int gaps_after_update = 0;
         for (int i = 0; i < requirements.days; i++) {
             gaps_after_update += calculate_gaps(school_class, i);
         }
         int gaps = gaps_after_update - gaps_before_update;
-        //score += gaps * 10000;
+        score += gaps * 10000;
 
         genome.day = new_day_index;
         genome.lesson = new_lesson_index;
@@ -302,7 +302,7 @@ Prototype build_schedule(const Requirements& requirements, int target = 1000) {
         std::sort(prototypes.begin(), prototypes.end(), [](const Prototype& a, const Prototype& b){ 
             return a.score < b.score; 
         }); 
-        if (prototypes.front().score <= target && 0) {
+        if (prototypes.front().score <= target) {
             return prototypes.front();
         }
         while (prototypes.size() > elitism) {
@@ -353,6 +353,6 @@ int main() {
     for (auto& genome : built.genomes) {
         std::cout << genome.string() << "\n";
     }
-    //std::cout << Schedule(built).string();
+    std::cout << Schedule(built).string();
     return 0;
 }
