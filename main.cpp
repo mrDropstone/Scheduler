@@ -43,6 +43,7 @@ struct Requirements {
     std::map<std::shared_ptr<Class>, std::map<std::shared_ptr<Subject>, SubjectRequirements>> classes;
 };
 
+
 struct Schedule {
     struct Lesson {
         std::shared_ptr<Subject> subject;
@@ -69,6 +70,12 @@ struct Schedule {
         Gene() {}
         Gene(std::shared_ptr<Subject> subject, std::shared_ptr<Teacher> teacher, std::shared_ptr<Class> school_class) : subject(subject), teacher(teacher), school_class(school_class) {}
     };
+    struct ScheduleViolations {
+        int teacher_double_booking = 0;
+        int class_double_booking = 0;
+        int class_gaps = 0;
+        int lesson_interval_exceeded = 0;
+    };
 
     std::vector<Gene> genes;
 
@@ -82,10 +89,53 @@ struct Schedule {
             }
         }
     }
-    float analyze(const Requirements& requirements) {
-        using SubjectMatrix = std::vector<std::vector<int>>;
+    using SubjectMatrix = std::vector<std::vector<int>>;
+    ScheduleViolations validate(const Requirements& requirements) {
+        ScheduleViolations violations;
+        std::map<std::shared_ptr<Class>, SubjectMatrix> class_data;
+        std::map<std::shared_ptr<Teacher>, SubjectMatrix> teacher_data;
+        for (auto& school_class : requirements.classes) {
+            class_data.emplace(school_class.first, 
+                SubjectMatrix(requirements.days)
+            );
+        }
+        for (auto& gene : genes) {
+            auto& school_class = class_data.at(gene.school_class);
+            if (school_class.at(gene.day).size() <= gene.lesson) {
+                school_class.at(gene.day).resize(gene.lesson + 1, 0);
+            }
+            if (school_class.at(gene.day).at(gene.lesson) != 0) {
+                violations.class_double_booking++;
+            }
+            school_class.at(gene.day).at(gene.lesson)++;
 
-        // 0 is best
+            auto& teacher = teacher_data[gene.teacher];
+            if (teacher.size() == 0) {
+                teacher.resize(requirements.days);
+            }
+            if (teacher.at(gene.day).size() <= gene.lesson) {
+                teacher.at(gene.day).resize(gene.lesson + 1, 0);
+            }
+            if (teacher.at(gene.day).at(gene.lesson) != 0) {
+                violations.teacher_double_booking++;
+            }
+            teacher.at(gene.day).at(gene.lesson)++;
+        }
+        for (auto& school_class : class_data) {
+            for (auto& day : school_class.second) {
+                int lessons = 0;
+                for (int lesson : day) {
+                    if (lesson != 0) {
+                        lessons++;
+                    }
+                }
+                violations.class_gaps += day.size() - lessons;
+                violations.lesson_interval_exceeded += std::pow(abs(lessons - 9), 3) * 10;
+            }
+        }
+        return violations;
+    }
+    float analyze(const Requirements& requirements) {
         float rating = 0.0;
         std::map<std::shared_ptr<Class>, SubjectMatrix> class_data;
         std::map<std::shared_ptr<Teacher>, SubjectMatrix> teacher_data;
@@ -149,6 +199,61 @@ struct Schedule {
     }
 };
 
+
+struct ConstructedSchedule {
+    struct Lesson {
+        std::shared_ptr<Subject> subject;
+        std::shared_ptr<Teacher> teacher;
+    };
+
+    std::map<std::shared_ptr<Class>, std::vector<std::vector<Lesson>>> class_schedule;
+    std::map<std::shared_ptr<Teacher>, std::vector<std::vector<Lesson>>> teacher_schedule;
+
+    ConstructedSchedule() {}
+    ConstructedSchedule(const ConstructedSchedule& other) : class_schedule(other.class_schedule), teacher_schedule(other.teacher_schedule) {}
+    ConstructedSchedule(const Schedule& schedule) {
+        for (auto& gene : schedule.genes) {
+            auto& class_ref = class_schedule[gene.school_class];
+            if (class_ref.size() <= gene.day) {
+                class_ref.resize(gene.day + 1);
+            }
+            if (class_ref.at(gene.day).size() <= gene.lesson) {
+                class_ref.at(gene.day).resize(gene.lesson + 1);
+            }
+            class_ref.at(gene.day).at(gene.lesson).teacher = gene.teacher;
+            class_ref.at(gene.day).at(gene.lesson).subject = gene.subject;
+        }
+    }
+    std::string string() const {
+        std::string result;
+        for (auto& school_class : class_schedule) {
+            result += school_class.first->name + " {\n";
+            for (int i = 0; i < school_class.second.size(); i++) {
+                result += multiply_string(" ", 4) + "day " + std::to_string(i) + " {\n";
+                for (int j = 0; j < school_class.second.at(i).size(); j++) {
+                    auto& lesson = school_class.second.at(i).at(j);
+                    result += multiply_string(" ", 8) + std::to_string(j) + ". " + lesson.subject->name + " - " + lesson.teacher->name +"\n";
+                }
+                result += multiply_string(" ", 4) + "}\n";
+            }
+            result += " }\n";
+        }
+        for (auto& teacher : teacher_schedule) {
+            result += teacher.first->name + " {\n";
+            for (int i = 0; i < teacher.second.size(); i++) {
+                result += multiply_string(" ", 4) + "day " + std::to_string(i) + " {\n";
+                for (int j = 0; j < teacher.second.at(i).size(); j++) {
+                    auto& lesson = teacher.second.at(i).at(j);
+                    result += multiply_string(" ", 8) + std::to_string(j) + ". " + lesson.subject->name + "\n";
+                }
+                result += multiply_string(" ", 4) + "}\n";
+            }
+            result += " }\n";
+        }
+        return result;
+    }
+};
+
 Schedule create_schedule(const Requirements& requirements) {
     Schedule schedule(requirements);
     int population = 50;
@@ -159,7 +264,7 @@ Schedule create_schedule(const Requirements& requirements) {
         models.back().mutate(requirements);
     }
 
-    for (int i = 0; i < 50000; i++) {
+    for (int i = 0; i < 5000; i++) {
         std::vector<std::pair<float, Schedule>> analysis;
         for (auto& model : models) {
             int analysis_result = model.analyze(requirements);
@@ -186,51 +291,8 @@ Schedule create_schedule(const Requirements& requirements) {
 }
 
 int main() {
-    /*
+
     std::vector<std::shared_ptr<Subject>> subjects = {
-        std::make_shared<Subject>("Math"),
-        std::make_shared<Subject>("DNA engineering"),
-        std::make_shared<Subject>("Reverse-engineering"),
-        std::make_shared<Subject>("Defrosting"),
-        std::make_shared<Subject>("Kernel development"),
-        std::make_shared<Subject>("Reverse-grinding"),
-        std::make_shared<Subject>("Cyberinsecurity"),
-        std::make_shared<Subject>("Neurobiology"),
-    };
-    std::vector<std::shared_ptr<Teacher>> teachers = {
-        std::make_shared<Teacher>("Cirpa Ilatera", std::vector<Subject>()),
-        std::make_shared<Teacher>("Lohman", std::vector<Subject>()),
-        std::make_shared<Teacher>("Rof Jinkul", std::vector<Subject>()),
-        std::make_shared<Teacher>("Han", std::vector<Subject>()),
-        std::make_shared<Teacher>("Peter Walshere", std::vector<Subject>()),
-        std::make_shared<Teacher>("Long Gregory", std::vector<Subject>()),
-        std::make_shared<Teacher>("Patrick Mk II", std::vector<Subject>()),
-        std::make_shared<Teacher>("Golden man", std::vector<Subject>()),
-        std::make_shared<Teacher>("Benjure", std::vector<Subject>()),
-        std::make_shared<Teacher>("Guobian", std::vector<Subject>()),
-        std::make_shared<Teacher>("Teleportan", std::vector<Subject>()),
-        std::make_shared<Teacher>("Bobby Fisher", std::vector<Subject>()),
-        std::make_shared<Teacher>("John Watching", std::vector<Subject>()),
-        std::make_shared<Teacher>("Jie Tan", std::vector<Subject>()),
-    };
-    std::vector<std::shared_ptr<Class>> classes = {
-        std::make_shared<Class>("67L"),
-        std::make_shared<Class>("42S"),
-    };
-    Requirements requirements;
-    requirements.classes = std::map<std::shared_ptr<Class>, std::map<std::shared_ptr<Subject>, Requirements::SubjectRequirements>>(
-        {
-            {classes.at(0), {
-                {subjects.at(0), Requirements::SubjectRequirements(5, 6, teachers.at(0))},
-                {subjects.at(1), Requirements::SubjectRequirements(5, 6, teachers.at(1))},
-            }},
-            {classes.at(1), {
-                {subjects.at(0), Requirements::SubjectRequirements(5, 6, teachers.at(0))},
-                {subjects.at(1), Requirements::SubjectRequirements(5, 6, teachers.at(1))},
-            }},
-        }
-    );
-    */std::vector<std::shared_ptr<Subject>> subjects = {
     std::make_shared<Subject>("Math"),
     std::make_shared<Subject>("English Language Arts"),
     std::make_shared<Subject>("Science"),
@@ -254,7 +316,7 @@ for (int i = 0; i < 50; ++i) {
 }
 
 Requirements requirements;
-for (int i = 0; i < 50; ++i) {
+for (int i = 0; i < 20; ++i) {
     int group = i / 5; // 0..9, ten groups of five classes
     std::map<std::shared_ptr<Subject>, Requirements::SubjectRequirements> reqs;
 
@@ -268,5 +330,7 @@ for (int i = 0; i < 50; ++i) {
     auto built = create_schedule(requirements);
     std::cout << built.string() << std::endl;
     std::cout << built.analyze(requirements) << std::endl;
+    ConstructedSchedule constructed_schedule(built);
+    std::cout << constructed_schedule.string();
     return 0;
 }
